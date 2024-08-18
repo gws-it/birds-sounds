@@ -1,0 +1,248 @@
+import streamlit as st
+import librosa
+import librosa.display
+import matplotlib.pyplot as plt
+import numpy as np
+import io
+from PIL import Image
+import base64
+import subprocess
+import pandas as pd
+import os
+os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
+import streamlit as st
+import base64
+import librosa
+import numpy as np
+import sklearn.preprocessing
+from PIL import Image
+from uuid import uuid4
+import tensorflow as tf
+import keras
+from tensorflow.keras.models import load_model
+
+
+# Load the full model
+model = load_model('best_model.keras')
+# model.load_weights("model.weights.h5")
+
+
+classes_to_predict=['Aegithina tiphia',
+ 'Ardea alba',
+ 'Ardea cinerea',
+ 'Ardea purpurea',
+ 'Arenaria interpres',
+ 'Corvus macrorhynchos',
+ 'Dicrurus paradiseus',
+ 'Elanus caeruleus',
+ 'Eudynamys scolopaceus',
+ 'Gallinula chloropus',
+ 'Motacilla cinerea',
+ 'Orthotomus sutorius',
+ 'Passer domesticus',
+ 'Psittacula krameri',
+ 'Tyto alba']
+
+def Prediction_bird(filename):
+    wave_data, wave_rate = librosa.load(filename)
+    wave_data, _ = librosa.effects.trim(wave_data)
+    sample_length = 5 * wave_rate
+    N_mels = 216
+    for idx in range(0, len(wave_data), sample_length):
+        song_sample = wave_data[idx:idx+sample_length]
+        if len(song_sample) >= sample_length:
+            mel = librosa.feature.melspectrogram(y=song_sample, sr=wave_rate, n_mels=N_mels)
+            db = librosa.power_to_db(mel)
+            normalised_db = sklearn.preprocessing.minmax_scale(db)
+            db_array = (np.asarray(normalised_db) * 255).astype(np.uint8)
+            db_image = Image.fromarray(np.array([db_array, db_array, db_array]).T)
+            return db_image
+
+def preprocess_image(image):
+    image = image.resize((216, 216))
+    image_array = np.array(image)
+    image_array = image_array / 255.0  # Rescale to [0, 1]
+    image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
+    return image_array
+
+
+
+# Function to read a local image file and convert it to a base64 string
+@st.cache_data
+def get_img_as_base64(file_path):
+    with open(file_path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# Load the background image
+bg_img_path = "stat_imgs/new2.jpg"
+bg_img_base64 = get_img_as_base64(bg_img_path)
+
+# Load the sidebar image
+sidebar_img_path = "GWSLivingArt_Logo_V6-02.png"
+sidebar_img_base64 = get_img_as_base64(sidebar_img_path)
+
+# Set the background image and sidebar image in the Streamlit app
+page_bg_img = f"""
+<style>
+[data-testid="stAppViewContainer"] > .main {{
+background-image: url("data:image/png;base64,{bg_img_base64}");
+background-size: 100%;
+background-position: top left;
+background-repeat: repeat;
+background-attachment: local;
+}}
+
+[data-testid="stSidebar"] > div:first-child {{
+background-image: url("data:image/png;base64,{sidebar_img_base64}");
+background-position: center; 
+background-repeat: no-repeat;
+background-attachment: fixed;
+}}
+
+[data-testid="stHeader"] {{
+background: rgba(0,0,0,0);
+}}
+
+[data-testid="stToolbar"] {{
+right: 2rem;
+}}
+</style>
+"""
+
+st.markdown(page_bg_img, unsafe_allow_html=True)
+
+ 
+# st.image("title.jpg")
+df=pd.read_csv("Birds_full_data.csv")
+
+
+# Function to display the waveform
+def display_waveform(y, sr):
+    fig, ax = plt.subplots(figsize=(14, 5))
+    librosa.display.waveshow(y, sr=sr, ax=ax)
+    ax.set(title='Waveform')
+    st.pyplot(fig)
+
+# Function to convert image to base64
+def image_to_base64(image):
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+
+# Function to get bird description using OpenAI API
+def get_bird_description(bird_name):
+    return df[df.common_name==f"{bird_name}"].description.values[0]
+ 
+
+# st.title('Birds Sound Identification System')
+st.markdown(
+    """
+     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <h1 style='text-align: center; color: #09B37A; font-family: "Heebo",'>Birds Sound Identification System</h1>
+    """,
+    unsafe_allow_html=True
+)
+
+# st.subheader('Upload Your Sound Clip Here')
+st.markdown(
+    """
+     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <h3 style='text-align: center; color: #09B37A; font-family: "Heebo",'>Upload Your Sound Clip Here</h3>
+    """,
+    unsafe_allow_html=True
+)
+
+# Upload audio file
+uploaded_file = st.file_uploader("", type=["wav", "mp3","ogg"])
+
+if uploaded_file is not None:
+    # Load audio file
+    audio_data, sr = librosa.load(uploaded_file, sr=None)
+    st.audio(uploaded_file, format='audio/wav')
+
+    # Display waveform
+    # st.subheader('Original Sound')
+    st.markdown(
+    """
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <h6 style='text-align: left; color: #09B37A; font-family: "Heebo",'>Original Sound</h6>
+    """,
+    unsafe_allow_html=True
+)
+    display_waveform(audio_data, sr)
+
+    # Predict bird species button
+    if st.button('Predict Bird Species'):
+        # Run the model prediction script (assuming mymode.sh outputs the bird species name)
+        # result = subprocess.run(['./mymode.sh', 'temp_audio_file.wav'], capture_output=True, text=True)
+        bird_image = Prediction_bird(uploaded_file)
+        bird_image_array = preprocess_image(bird_image)
+        prediction = model.predict(bird_image_array)
+        predicted_class = classes_to_predict[np.argmax(prediction)]
+        bird_species = df[df.scientific_name==f"{predicted_class}"].common_name.values[0]#"Crested Honey Buzzard"
+
+        # Display the predicted bird species
+        # st.subheader(f'Predicted Bird Species: {bird_species}')
+        st.markdown(
+            f"""
+             <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+            <h2 style='color: white; font-family: "Heebo",'>Predicted Bird Species: {bird_species}</h2>
+            """,
+            unsafe_allow_html=True)
+
+ 
+        ##here need to update the image display
+
+        # Display bird image (assuming you have images named as the bird species)
+        image_formats = ['jpg', 'png']
+        image_found = False
+        for ext in image_formats:
+            bird_image_path = f'images2/{bird_species}.{ext}'
+            if os.path.isfile(bird_image_path):
+
+                bird_image = Image.open(bird_image_path)
+                bird_image_base64 = logo_base64 = image_to_base64(bird_image)
+                
+                # Display the image using HTML and CSS to center it
+                st.markdown(
+                    f'''
+                    <div style="display: flex; justify-content: center;">
+                        <img src="data:image/png;base64,{bird_image_base64}" width="300">
+                    </div>
+                    ''',
+                    unsafe_allow_html=True
+                )
+                image_found = True
+                break
+        
+        if not image_found:
+            st.write("No image available for this bird species.")
+
+        # Get and display bird description
+        description = get_bird_description(bird_species)
+        st.write(" ")
+        st.markdown(
+    f"""
+    <p style='color: White; font-family: "Heebo",'>{description}</p>
+    """,
+    unsafe_allow_html=True
+)
+
+        
+# Load company logo
+logo_image = Image.open('GWSLivingArt_Logo_V6-02.png')
+
+# Convert the logo image to a base64 string
+logo_base64 = image_to_base64(logo_image)
+
+# Display the company logo in small size and centered
+st.markdown(
+    f'''
+    <div style="display: flex; justify-content: center;">
+        <img src="data:image/png;base64,{logo_base64}" width="250">
+    </div>
+    ''',
+    unsafe_allow_html=True
+)
