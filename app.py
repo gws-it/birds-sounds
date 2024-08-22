@@ -20,52 +20,86 @@ from PIL import Image
 from uuid import uuid4
 import tensorflow as tf
 import keras
-from tensorflow.keras.models import load_model
+# from tensorflow.keras.models import load_model
+import json
+
+# # Load the full model
+# model = load_model('best_model.keras')
+# # model.load_weights("model.weights.h5")
 
 
-# Load the full model
-model = load_model('best_model.keras')
-# model.load_weights("model.weights.h5")
+# classes_to_predict=['Aegithina tiphia',
+#  'Ardea alba',
+#  'Ardea cinerea',
+#  'Ardea purpurea',
+#  'Arenaria interpres',
+#  'Corvus macrorhynchos',
+#  'Dicrurus paradiseus',
+#  'Elanus caeruleus',
+#  'Eudynamys scolopaceus',
+#  'Gallinula chloropus',
+#  'Motacilla cinerea',
+#  'Orthotomus sutorius',
+#  'Passer domesticus',
+#  'Psittacula krameri',
+#  'Tyto alba']
 
+# def Prediction_bird(filename):
+#     wave_data, wave_rate = librosa.load(filename)
+#     wave_data, _ = librosa.effects.trim(wave_data)
+#     sample_length = 5 * wave_rate
+#     N_mels = 216
+#     for idx in range(0, len(wave_data), sample_length):
+#         song_sample = wave_data[idx:idx+sample_length]
+#         if len(song_sample) >= sample_length:
+#             mel = librosa.feature.melspectrogram(y=song_sample, sr=wave_rate, n_mels=N_mels)
+#             db = librosa.power_to_db(mel)
+#             normalised_db = sklearn.preprocessing.minmax_scale(db)
+#             db_array = (np.asarray(normalised_db) * 255).astype(np.uint8)
+#             db_image = Image.fromarray(np.array([db_array, db_array, db_array]).T)
+#             return db_image
 
-classes_to_predict=['Aegithina tiphia',
- 'Ardea alba',
- 'Ardea cinerea',
- 'Ardea purpurea',
- 'Arenaria interpres',
- 'Corvus macrorhynchos',
- 'Dicrurus paradiseus',
- 'Elanus caeruleus',
- 'Eudynamys scolopaceus',
- 'Gallinula chloropus',
- 'Motacilla cinerea',
- 'Orthotomus sutorius',
- 'Passer domesticus',
- 'Psittacula krameri',
- 'Tyto alba']
+# def preprocess_image(image):
+#     image = image.resize((216, 216))
+#     image_array = np.array(image)
+#     image_array = image_array / 255.0  # Rescale to [0, 1]
+#     image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
+#     return image_array
 
-def Prediction_bird(filename):
-    wave_data, wave_rate = librosa.load(filename)
-    wave_data, _ = librosa.effects.trim(wave_data)
-    sample_length = 5 * wave_rate
-    N_mels = 216
-    for idx in range(0, len(wave_data), sample_length):
-        song_sample = wave_data[idx:idx+sample_length]
-        if len(song_sample) >= sample_length:
-            mel = librosa.feature.melspectrogram(y=song_sample, sr=wave_rate, n_mels=N_mels)
-            db = librosa.power_to_db(mel)
-            normalised_db = sklearn.preprocessing.minmax_scale(db)
-            db_array = (np.asarray(normalised_db) * 255).astype(np.uint8)
-            db_image = Image.fromarray(np.array([db_array, db_array, db_array]).T)
-            return db_image
+def prediction(audio_file):
 
-def preprocess_image(image):
-    image = image.resize((216, 216))
-    image_array = np.array(image)
-    image_array = image_array / 255.0  # Rescale to [0, 1]
-    image_array = np.expand_dims(image_array, axis=0)  # Add batch dimension
-    return image_array
+    # Load the Prediction JSON File to Predict Target_Label
+    with open('prediction.json', mode='r') as f:
+        prediction_dict = json.load(f)
 
+    # Extract the Audio_Signal and Sample_Rate from Input Audio
+    audio, sample_rate =librosa.load(audio_file)
+
+    # Extract the MFCC Features and Aggrigate
+    mfccs_features = librosa.feature.mfcc(y=audio, sr=sample_rate, n_mfcc=40)
+    mfccs_features = np.mean(mfccs_features, axis=1)
+
+    # Reshape MFCC features to match the expected input shape for Conv1D both batch & feature dimension
+    mfccs_features = np.expand_dims(mfccs_features, axis=0)
+    mfccs_features = np.expand_dims(mfccs_features, axis=2)
+
+    # Convert into Tensors
+    mfccs_tensors = tf.convert_to_tensor(mfccs_features, dtype=tf.float32)
+
+    # Load the Model and Prediction
+    model = tf.keras.models.load_model('model.h5')
+    prediction = model.predict(mfccs_tensors)
+
+    # Find the Maximum Probability Value
+    target_label = np.argmax(prediction)
+
+    # Find the Target_Label Name using Prediction_dict
+    predicted_class = prediction_dict[str(target_label)]
+    confidence = round(np.max(prediction)*100, 2)
+    return predicted_class,confidence
+
+    # print(f'Predicted Class : {predicted_class}')
+    # print(f'Confident : {confidence}%')
 
 
 # Function to read a local image file and convert it to a base64 string
@@ -175,60 +209,68 @@ if uploaded_file is not None:
 
     # Predict bird species button
     if st.button('Predict Bird Species'):
-        # Run the model prediction script (assuming mymode.sh outputs the bird species name)
-        # result = subprocess.run(['./mymode.sh', 'temp_audio_file.wav'], capture_output=True, text=True)
-        bird_image = Prediction_bird(uploaded_file)
-        bird_image_array = preprocess_image(bird_image)
-        prediction = model.predict(bird_image_array)
-        predicted_class = classes_to_predict[np.argmax(prediction)]
-        bird_species = df[df.scientific_name==f"{predicted_class}"].common_name.values[0]#"Crested Honey Buzzard"
+        predicted_class,confidence = prediction(uploaded_file)
+        if confidence >60:
 
-        # Display the predicted bird species
-        # st.subheader(f'Predicted Bird Species: {bird_species}')
-        st.markdown(
-            f"""
-             <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
-            <h2 style='color: white; font-family: "Heebo",'>Predicted Bird Species: {bird_species}</h2>
-            """,
-            unsafe_allow_html=True)
+            bird_species = df[df.scientific_name==f"{predicted_class}"].common_name.values[0]#"Crested Honey Buzzard"
+            st.markdown(
+                f"""
+                <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+                <h2 style='color: white; font-family: "Heebo",'>Predicted Bird Species: {bird_species}</h2>
+                """,
+                unsafe_allow_html=True)
+            st.markdown(
+                f"""
+                <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+                <h6 style='color: white; font-family: "Heebo",'> Model Confidence: {confidence} %</h6>
+                """,
+                unsafe_allow_html=True)
+            
 
- 
-        ##here need to update the image display
+    
+            ##here need to update the image display
 
-        # Display bird image (assuming you have images named as the bird species)
-        image_formats = ['jpg', 'png']
-        image_found = False
-        for ext in image_formats:
-            bird_image_path = f'images2/{bird_species}.{ext}'
-            if os.path.isfile(bird_image_path):
+            # Display bird image (assuming you have images named as the bird species)
+            image_formats = ['jpg', 'png']
+            image_found = False
+            for ext in image_formats:
+                bird_image_path = f'images2/{bird_species}.{ext}'
+                if os.path.isfile(bird_image_path):
 
-                bird_image = Image.open(bird_image_path)
-                bird_image_base64 = logo_base64 = image_to_base64(bird_image)
-                
-                # Display the image using HTML and CSS to center it
-                st.markdown(
-                    f'''
-                    <div style="display: flex; justify-content: center;">
-                        <img src="data:image/png;base64,{bird_image_base64}" width="300">
-                    </div>
-                    ''',
-                    unsafe_allow_html=True
-                )
-                image_found = True
-                break
-        
-        if not image_found:
-            st.write("No image available for this bird species.")
+                    bird_image = Image.open(bird_image_path)
+                    bird_image_base64 = logo_base64 = image_to_base64(bird_image)
+                    
+                    # Display the image using HTML and CSS to center it
+                    st.markdown(
+                        f'''
+                        <div style="display: flex; justify-content: center;">
+                            <img src="data:image/png;base64,{bird_image_base64}" width="300">
+                        </div>
+                        ''',
+                        unsafe_allow_html=True
+                    )
+                    image_found = True
+                    break
+            
+            if not image_found:
+                st.write("No image available for this bird species.")
 
-        # Get and display bird description
-        description = get_bird_description(bird_species)
-        st.write(" ")
-        st.markdown(
-    f"""
-    <p style='color: White; font-family: "Heebo",'>{description}</p>
-    """,
-    unsafe_allow_html=True
-)
+            # Get and display bird description
+            description = get_bird_description(bird_species)
+            st.write(" ")
+            st.markdown(f"""
+                        <p style='color: White; font-family: "Heebo",'>{description}</p>
+                        """,
+                        unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+                        <p style='color: White; font-family: "Heebo",'>Not Available in the Trained Data</p>
+                        """,
+                        unsafe_allow_html=True)
+
+    
+    
+    
 
         
 # Load company logo
