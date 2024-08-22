@@ -210,7 +210,7 @@ if uploaded_file is not None:
     # Predict bird species button
     if st.button('Predict Bird Species'):
         predicted_class,confidence = prediction(uploaded_file)
-        if confidence >60:
+        if confidence >70:
 
             bird_species = df[df.scientific_name==f"{predicted_class}"].common_name.values[0]#"Crested Honey Buzzard"
             st.markdown(
