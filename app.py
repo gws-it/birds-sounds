@@ -263,10 +263,14 @@ if uploaded_file is not None:
                         """,
                         unsafe_allow_html=True)
         else:
-            st.markdown(f"""
-                        <p style='color: White; font-family: "Heebo",'>Not Available in the Trained Data</p>
-                        """,
-                        unsafe_allow_html=True)
+            st.markdown(
+    """
+     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <h3 style='text-align: center; color: #09B37A; font-family: "Heebo",'>❌ This sound clip is Not Available in the Trained Data</h3>
+    """,
+    unsafe_allow_html=True
+)
+
 
     
     
