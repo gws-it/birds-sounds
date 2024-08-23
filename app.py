@@ -120,11 +120,11 @@ bg_img_path = "stat_imgs/design.jpg"
 bg_img_base64 = get_img_as_base64(bg_img_path)
 
 # Load the sidebar image
-sidebar_img_path = "GWSLivingArt_Logo.png"
+sidebar_img_path = "GWSLivingArt_Logo_V6-02.png"
 sidebar_img_base64 = get_img_as_base64(sidebar_img_path)
 
 # Load company logo
-logo_image = Image.open('GWSLivingArt_Logo.png')
+logo_image = Image.open('GWSLivingArt_Logo_V6-02.png')
 
 # Convert the logo image to a base64 string
 logo_base64 = image_to_base64(logo_image)
