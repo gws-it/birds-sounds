@@ -120,7 +120,7 @@ bg_img_path = "stat_imgs/design.jpg"
 bg_img_base64 = get_img_as_base64(bg_img_path)
 
 # Load the sidebar image
-sidebar_img_path = "GWSLivingArt_Logo.png"
+sidebar_img_path = "GWSLivingArt_Logo_V6-02.png"
 sidebar_img_base64 = get_img_as_base64(sidebar_img_path)
 
 # Load company logo
