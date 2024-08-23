@@ -109,45 +109,170 @@ def get_img_as_base64(file_path):
         data = f.read()
     return base64.b64encode(data).decode()
 
+# Function to convert image to base64
+def image_to_base64(image):
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode()
+    
 # Load the background image
-bg_img_path = "stat_imgs/new2.jpg"
+bg_img_path = "stat_imgs/design.jpg"
 bg_img_base64 = get_img_as_base64(bg_img_path)
 
 # Load the sidebar image
-sidebar_img_path = "GWSLivingArt_Logo_V6-02.png"
+sidebar_img_path = "GWSLivingArt_Logo.png"
 sidebar_img_base64 = get_img_as_base64(sidebar_img_path)
 
+# Load company logo
+logo_image_path = '\GWSLivingArt_Logo.png'
+logo_image = Image.open(logo_image_path)
+
+# Convert the logo image to a base64 string
+logo_base64 = image_to_base64(logo_image)
+
 # Set the background image and sidebar image in the Streamlit app
+# Define custom CSS for styling
 page_bg_img = f"""
 <style>
+/* Top banner styling */
+.top-banner {{
+    width: 100%;
+    height: 80px;
+    background-color: white;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    # box-shadow: 0px 4px 2px -2px gray;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10000;
+}}
+
+/* Styling for the logo in the banner */
+.top-banner-logo {{
+    height: 100%; /* Makes the logo height match the banner */
+    max-height: 80px; /* Limit maximum height of the logo */
+    width: auto; /* Maintain aspect ratio */
+}}
+
+/* Styling for the text in the banner */
+.top-banner-text {{
+    font-family: "Heebo", sans-serif;
+    font-size: 24px;
+    color: #09B37A; /* Company theme color */
+    margin-left: 20px;
+}}
+
+/* Background and Sidebar Image */
 [data-testid="stAppViewContainer"] > .main {{
-background-image: url("data:image/png;base64,{bg_img_base64}");
-background-size: 100%;
-background-position: top left;
-background-repeat: repeat;
-background-attachment: local;
+    background-image: url("data:image/png;base64,{bg_img_base64}");
+    background-size: 100%;
+    background-position: top left;
+    background-repeat: repeat;
+    background-attachment: local;
 }}
 
 [data-testid="stSidebar"] > div:first-child {{
-background-image: url("data:image/png;base64,{sidebar_img_base64}");
-background-position: center; 
-background-repeat: no-repeat;
-background-attachment: fixed;
+    background-image: url("data:image/png;base64,{sidebar_img_base64}");
+    background-position: center; 
+    background-repeat: no-repeat;
+    background-attachment: fixed;
 }}
 
-[data-testid="stHeader"] {{
-background: rgba(0,0,0,0);
+# [data-testid="stHeader"] > div:first-child {{
+#     display: flex;
+#     align-items: center;
+#     justify-content: center;
+# }}
+
+.header-logo {{
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    padding: 5px;
+    z-index: 10000;
 }}
 
 [data-testid="stToolbar"] {{
-right: 2rem;
+    right: 2rem;
+}}
+
+/* Styling for buttons */
+button {{
+    background-color: #09B37A !important;
+    color: white !important;
+    border-radius: 5px !important;
+    border: none !important;
+}}
+
+button:hover {{
+    background-color: #07A06A !important;
+    color: white !important;
+}}
+
+.st-emotion-cache-h4xjwg {{
+    position: fixed;
+    top: 0px;
+    left: 0px;
+    right: 0px;
+    height: 0rem;
+    background: rgb(14, 17, 23);
+    outline: none;
+    z-index: 999990;
+    display: block;
+}}
+
+/* Styling for filenames and text */
+.st-emotion-cache-7oyrr6 {{
+    color: #09B37A !important;
+    font-size: 16px !important;
+    line-height: 1.5 !important;
+}}
+
+.st-emotion-cache-1uixxvy {{
+    color: #09B37A !important;
+    margin-right: 0.5rem !important;
+    margin-bottom: 0.25rem !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}}
+
+.st-emotion-cache-13ln4jf {{
+    max-width: 50rem !important;
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+}}
+
+p {{
+    color: white;
+    font-family: "Heebo", sans-serif !important;
 }}
 </style>
 """
 
 st.markdown(page_bg_img, unsafe_allow_html=True)
 
- 
+# HTML for the top banner
+top_banner_html = f"""
+<div class="top-banner">
+    <a href="https://www.gwslivingart.com" target="_blank">
+        <img src="data:image/png;base64,{logo_base64}" class="top-banner-logo">        
+    </a>
+    <div class="top-banner-text"></div>
+</div>
+"""
+
+
+# Inject the HTML into the Streamlit app
+st.markdown(top_banner_html, unsafe_allow_html=True)
+
+# Adjust padding for main content to avoid overlap with the banner
+st.markdown("<div style='padding-top: 100px;'></div>", unsafe_allow_html=True)
+
+
 # st.image("title.jpg")
 df=pd.read_csv("Birds_full_data.csv")
 
@@ -159,34 +284,28 @@ def display_waveform(y, sr):
     ax.set(title='Waveform')
     st.pyplot(fig)
 
-# Function to convert image to base64
-def image_to_base64(image):
-    buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
-    return base64.b64encode(buffered.getvalue()).decode()
-
 # Function to get bird description using OpenAI API
 def get_bird_description(bird_name):
     return df[df.common_name==f"{bird_name}"].description.values[0]
  
 
-# st.title('Birds Sound Identification System')
+# Streamlit UI
 st.markdown(
     """
-     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
     <h1 style='text-align: center; color: #09B37A; font-family: "Heebo",'>Birds Sound Identification System</h1>
     """,
     unsafe_allow_html=True
 )
 
-# st.subheader('Upload Your Sound Clip Here')
 st.markdown(
     """
-     <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
     <h3 style='text-align: center; color: #09B37A; font-family: "Heebo",'>Upload Your Sound Clip Here</h3>
     """,
     unsafe_allow_html=True
 )
+
 
 # Upload audio file
 uploaded_file = st.file_uploader("", type=["wav", "mp3","ogg"])
@@ -216,13 +335,13 @@ if uploaded_file is not None:
             st.markdown(
                 f"""
                 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
-                <h2 style='color: white; font-family: "Heebo",'>Predicted Bird Species: {bird_species}</h2>
+                <h2 style='color: #09B37A; font-family: "Heebo",'>Predicted Bird Species: {bird_species}</h2>
                 """,
                 unsafe_allow_html=True)
             st.markdown(
                 f"""
                 <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;700&display=swap" rel="stylesheet">
-                <h6 style='color: white; font-family: "Heebo",'> Model Confidence: {confidence} %</h6>
+                <h6 style='color: #09B37A; font-family: "Heebo",'> Model Confidence: {confidence} %</h6>
                 """,
                 unsafe_allow_html=True)
             
