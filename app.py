@@ -377,7 +377,7 @@ if uploaded_file is not None:
             description = get_bird_description(bird_species)
             st.write(" ")
             st.markdown(f"""
-                        <p style='color: White; font-family: "Heebo",'>{description}</p>
+                        <p style='color: #09B37A; font-family: "Heebo",'>{description}</p>
                         """,
                         unsafe_allow_html=True)
         else:
